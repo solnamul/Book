@@ -10,11 +10,30 @@ import SnapKit
 
 class SearchView: UIView {
     
-    // UI 요소 정의
     let searchBar: UISearchBar = {
         let searchBar = UISearchBar()
         searchBar.placeholder = "책 제목을 입력하세요"
         return searchBar
+    }()
+    
+    let resultsLabel: UILabel = {
+        let label = UILabel()
+        label.text = "검색 결과"
+        label.font = .systemFont(ofSize: 23, weight: .bold)
+        label.textColor = .black
+        return label
+    }()
+    
+    let collectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 10
+        layout.sectionInset = UIEdgeInsets(top: 10, left: 20, bottom: 10, right: 20)
+        
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.register(BookCell.self, forCellWithReuseIdentifier: "BookCell")
+        collectionView.backgroundColor = .white
+        return collectionView
     }()
     
     override init(frame: CGRect) {
@@ -30,11 +49,22 @@ class SearchView: UIView {
     private func setupUI() {
         backgroundColor = .white
         
-        // 검색 바
         addSubview(searchBar)
         searchBar.snp.makeConstraints { make in
-            make.top.equalTo(safeAreaLayoutGuide.snp.top).inset(10)
+            make.top.equalTo(safeAreaLayoutGuide.snp.top)
             make.leading.trailing.equalToSuperview().inset(20)
+        }
+        
+        addSubview(resultsLabel)
+        resultsLabel.snp.makeConstraints { make in
+            make.top.equalTo(searchBar.snp.bottom).offset(20)
+            make.leading.equalToSuperview().inset(20)
+        }
+        
+        addSubview(collectionView)
+        collectionView.snp.makeConstraints { make in
+            make.top.equalTo(resultsLabel.snp.bottom).offset(10)
+            make.leading.trailing.bottom.equalToSuperview()
         }
     }
 }

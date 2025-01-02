@@ -7,12 +7,18 @@
 
 import UIKit
 
+struct Book {
+    let title: String
+    let author: String
+    let price: String
+}
+
 class SearchViewController: UIViewController {
     
     private let searchView = SearchView()
+    private var searchResults: [Book] = [] // 검색 결과를 저장하는 배열
     
     override func loadView() {
-        // SearchView를 뷰 컨트롤러의 루트 뷰로 설정
         self.view = searchView
     }
     
@@ -21,13 +27,10 @@ class SearchViewController: UIViewController {
         configureActions()
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        navigationController?.setNavigationBarHidden(true, animated: true) // 검색창이 겹쳐 네비게이션 바 숨기기
-    }
-    
     private func configureActions() {
         searchView.searchBar.delegate = self
+        searchView.collectionView.delegate = self
+        searchView.collectionView.dataSource = self
     }
     
     private func fetchBooks(query: String) {
@@ -42,7 +45,7 @@ class SearchViewController: UIViewController {
         var request = URLRequest(url: url)
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK eb904a41e2e463eb85dadb0eaca5517c"]
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
                 print("API 호출 에러: \(error.localizedDescription)")
                 return
@@ -53,13 +56,37 @@ class SearchViewController: UIViewController {
                 return
             }
             
-            // JSON 데이터 출력
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("API 결과: \(jsonString)")
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+                let documents = json?["documents"] as? [[String: Any]] ?? []
+                
+                // JSON 데이터에서 최대 3개의 책 정보만 저장
+                self?.searchResults = documents.prefix(3).compactMap { dict -> Book? in
+                    guard
+                        let title = dict["title"] as? String,
+                        let author = dict["authors"] as? [String],
+                        let price = dict["price"] as? Int
+                    else { return nil }
+                    
+                    return Book(
+                        title: title,
+                        author: author.joined(separator: ", "), // 저자 여러 명을 쉼표로 구분
+                        price: "\(price)원"
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self?.updateUI()
+                }
+            } catch {
+                print("JSON 파싱 에러: \(error.localizedDescription)")
             }
-            
-            // 필요한 경우 데이터를 파싱해서 UI에 반영 가능
         }.resume()
+    }
+    
+    private func updateUI() {
+        searchView.resultsLabel.text = searchResults.isEmpty ? "검색 결과가 없습니다." : "검색 결과"
+        searchView.collectionView.reloadData()
     }
 }
 
@@ -68,7 +95,36 @@ extension SearchViewController: UISearchBarDelegate {
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         guard let query = searchBar.text, !query.isEmpty else { return }
         print("검색 버튼 클릭: \(query)")
-        fetchBooks(query: query) // API 호출
-        searchBar.resignFirstResponder() // 키보드 닫기
+        fetchBooks(query: query)
+        searchBar.resignFirstResponder()
+    }
+}
+
+// MARK: - UICollectionViewDataSource, UICollectionViewDelegate
+extension SearchViewController: UICollectionViewDataSource, UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return searchResults.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "BookCell", for: indexPath) as? BookCell else {
+            return UICollectionViewCell()
+        }
+        let book = searchResults[indexPath.item]
+        cell.configure(with: book)
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let book = searchResults[indexPath.item]
+        print("선택된 책: \(book.title), \(book.author), \(book.price)")
+    }
+}
+
+// MARK: - UICollectionViewDelegateFlowLayout
+extension SearchViewController: UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let width = collectionView.bounds.width - 40 // 좌우 여백 포함
+        return CGSize(width: width, height: 100)
     }
 }
