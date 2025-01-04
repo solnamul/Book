@@ -28,7 +28,6 @@ class SearchViewController: UIViewController {
     }
     
     private func configureActions() {
-        searchView.searchBar.delegate = self
         searchView.collectionView.delegate = self
         searchView.collectionView.dataSource = self
     }
@@ -60,7 +59,6 @@ class SearchViewController: UIViewController {
                 let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
                 let documents = json?["documents"] as? [[String: Any]] ?? []
                 
-                // JSON 데이터에서 최대 3개의 책 정보만 저장
                 self?.searchResults = documents.prefix(3).compactMap { dict -> Book? in
                     guard
                         let title = dict["title"] as? String,
@@ -87,16 +85,6 @@ class SearchViewController: UIViewController {
     private func updateUI() {
         searchView.resultsLabel.text = searchResults.isEmpty ? "검색 결과가 없습니다." : "검색 결과"
         searchView.collectionView.reloadData()
-    }
-}
-
-// MARK: - UISearchBarDelegate
-extension SearchViewController: UISearchBarDelegate {
-    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        guard let query = searchBar.text, !query.isEmpty else { return }
-        print("검색 버튼 클릭: \(query)")
-        fetchBooks(query: query)
-        searchBar.resignFirstResponder()
     }
 }
 

@@ -10,12 +10,6 @@ import SnapKit
 
 class SearchView: UIView {
     
-    let searchBar: UISearchBar = {
-        let searchBar = UISearchBar()
-        searchBar.placeholder = "책 제목을 입력하세요"
-        return searchBar
-    }()
-    
     let resultsLabel: UILabel = {
         let label = UILabel()
         label.text = "검색 결과"
@@ -49,15 +43,9 @@ class SearchView: UIView {
     private func setupUI() {
         backgroundColor = .white
         
-        addSubview(searchBar)
-        searchBar.snp.makeConstraints { make in
-            make.top.equalTo(safeAreaLayoutGuide.snp.top)
-            make.leading.trailing.equalToSuperview().inset(20)
-        }
-        
         addSubview(resultsLabel)
         resultsLabel.snp.makeConstraints { make in
-            make.top.equalTo(searchBar.snp.bottom).offset(20)
+            make.top.equalTo(safeAreaLayoutGuide.snp.top).offset(20)
             make.leading.equalToSuperview().inset(20)
         }
         
