@@ -11,11 +11,18 @@ struct Book {
     let title: String
     let author: String
     let price: String
+    let contents: String
+    let thumbnail: String
 }
 
 class SearchViewController: UIViewController {
     
     private let searchView = SearchView()
+    private let searchBar: UISearchBar = {
+        let searchBar = UISearchBar()
+        searchBar.placeholder = "책 제목을 입력하세요"
+        return searchBar
+    }()
     private var searchResults: [Book] = [] // 검색 결과를 저장하는 배열
     
     override func loadView() {
@@ -24,7 +31,13 @@ class SearchViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        setSearchBarInNavigationBar()
         configureActions()
+    }
+    
+    private func setSearchBarInNavigationBar() {
+        searchBar.delegate = self
+        self.navigationController?.navigationBar.topItem?.titleView = searchBar
     }
     
     private func configureActions() {
@@ -63,13 +76,17 @@ class SearchViewController: UIViewController {
                     guard
                         let title = dict["title"] as? String,
                         let author = dict["authors"] as? [String],
+                        let content = dict["contents"] as? String,
+                        let thumbnail = dict["thumbnail"] as? String,
                         let price = dict["price"] as? Int
                     else { return nil }
                     
                     return Book(
                         title: title,
                         author: author.joined(separator: ", "), // 저자 여러 명을 쉼표로 구분
-                        price: "\(price)원"
+                        price: "\(price)원",
+                        contents: content,
+                        thumbnail: thumbnail
                     )
                 }
                 
@@ -85,6 +102,16 @@ class SearchViewController: UIViewController {
     private func updateUI() {
         searchView.resultsLabel.text = searchResults.isEmpty ? "검색 결과가 없습니다." : "검색 결과"
         searchView.collectionView.reloadData()
+    }
+}
+
+// MARK: - UISearchBarDelegate
+extension SearchViewController: UISearchBarDelegate {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        guard let query = searchBar.text, !query.isEmpty else { return }
+        print("검색 버튼 클릭: \(query)")
+        fetchBooks(query: query)
+        searchBar.resignFirstResponder()
     }
 }
 
@@ -104,8 +131,11 @@ extension SearchViewController: UICollectionViewDataSource, UICollectionViewDele
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        let book = searchResults[indexPath.item]
-        print("선택된 책: \(book.title), \(book.author), \(book.price)")
+        let selectedBook = searchResults[indexPath.item]
+        let detailVC = DetailViewController() // 상세 화면 인스턴스 생성
+        detailVC.book = selectedBook // 선택된 책 데이터 전달
+        detailVC.modalPresentationStyle = .pageSheet // 모달 형식 설정
+        present(detailVC, animated: true, completion: nil) // 상세 화면 표시
     }
 }
 
@@ -114,5 +144,59 @@ extension SearchViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = collectionView.bounds.width - 40 // 좌우 여백 포함
         return CGSize(width: width, height: 100)
+    }
+}
+
+// MARK: - DetailViewController
+class BookDetailViewController: UIViewController {
+    
+    var book: Book? // 선택된 책 데이터
+    
+    private let titleLabel = UILabel()
+    private let authorLabel = UILabel()
+    private let priceLabel = UILabel()
+    private let addButton = UIButton(type: .system)
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        configureUI()
+    }
+    
+    private func setupUI() {
+        view.backgroundColor = .white
+        
+        titleLabel.font = .boldSystemFont(ofSize: 20)
+        authorLabel.font = .systemFont(ofSize: 16)
+        priceLabel.font = .systemFont(ofSize: 16)
+        priceLabel.textColor = .gray
+        
+        addButton.setTitle("담기", for: .normal)
+        addButton.backgroundColor = .green
+        addButton.setTitleColor(.white, for: .normal)
+        addButton.layer.cornerRadius = 10
+        addButton.addTarget(self, action: #selector(addToBookmark), for: .touchUpInside)
+        
+        let stackView = UIStackView(arrangedSubviews: [titleLabel, authorLabel, priceLabel, addButton])
+        stackView.axis = .vertical
+        stackView.spacing = 15
+        
+        view.addSubview(stackView)
+        stackView.snp.makeConstraints { make in
+            make.center.equalToSuperview()
+            make.leading.trailing.equalToSuperview().inset(20)
+        }
+    }
+    
+    private func configureUI() {
+        guard let book = book else { return }
+        titleLabel.text = book.title
+        authorLabel.text = book.author
+        priceLabel.text = book.price
+    }
+    
+    @objc private func addToBookmark() {
+        print("책 담기: \(book?.title ?? "알 수 없음")")
+        dismiss(animated: true, completion: nil)
     }
 }
